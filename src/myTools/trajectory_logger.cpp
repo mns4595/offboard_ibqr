@@ -20,6 +20,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <string>
+#include <unistd.h>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
@@ -42,8 +44,9 @@ using std::placeholders::_1;
 
 #define MAX_FILE_NAME_SIZE                  120
 
-#define LOG_FILE_NAME                       "/home/marco/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/Trajectory_Log_%Y-%m-%d-%T.txt"
-#define REF_TRAJ_FILE_NAME                  "/home/marco/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/Reference_Trajectory.txt"
+#define LOG_FOLDER_PATH                     "/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/"
+#define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
+#define REF_TRAJ_FILE_NAME                  "Reference_Trajectory.txt"
 
 /************************** Local Function Prototypes *************************/
 
@@ -72,22 +75,33 @@ public:
         // Subscribe to reference trajectory topic
         ref_traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&TrajectoryLogger::ref_trajectory_callback, this, _1));
 
-        // Get current time
-        t = time(0);
-        // Store as local time
-        now = localtime(&t);
-        // Write the file name with local time
-        strftime(fileNameBuffer, MAX_FILE_NAME_SIZE, LOG_FILE_NAME, now);
-        RCLCPP_INFO(this->get_logger(), "%s", fileNameBuffer);
-        // Open the log file
-        logFile.open(fileNameBuffer);
-        RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
-        // Set the log float precision to 9 to preserve decimal->binary conversion
-        logFile.precision(9);
-        // Set the precision to be for 9 decimal places
-        logFile << std::fixed;
-        // Write the header for the columns
-        logFile << "timestamp " << "rx " << "ry " << "rz " << "vx " << "vy " << "vz " << "qx " << "qy " << "qz " << "qw " << "r " << "p " << "y " << std::endl;
+        char tmp[256];
+        if(!getcwd(tmp, 256))
+        {
+            RCLCPP_ERROR(this->get_logger(), "CURRENT DIRECTORY NOT FOUND! ABORT");
+        }
+        else
+        {
+            myPath = tmp;
+            myPath += LOG_FOLDER_PATH;
+
+            // Get current time
+            t = time(0);
+            // Store as local time
+            now = localtime(&t);
+            // Write the file name with local time
+            strftime(fileNameBuffer, MAX_FILE_NAME_SIZE, (myPath + LOG_FILE_NAME).c_str(), now);
+            RCLCPP_INFO(this->get_logger(), "%s", fileNameBuffer);
+            // Open the log file
+            logFile.open(fileNameBuffer);
+            RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
+            // Set the log float precision to 9 to preserve decimal->binary conversion
+            logFile.precision(9);
+            // Set the precision to be for 9 decimal places
+            logFile << std::fixed;
+            // Write the header for the columns
+            logFile << "timestamp " << "rx " << "ry " << "rz " << "vx " << "vy " << "vz " << "qx " << "qy " << "qz " << "qw " << "r " << "p " << "y " << std::endl;
+        }
 	}
 
 	//---- Class Public Methods ----//
@@ -106,6 +120,7 @@ private:
     std::time_t t;                                  // Store the current time
     struct std::tm *now;                            // Store the time as local
     char fileNameBuffer[MAX_FILE_NAME_SIZE];        // Store the name of the log file with the local time
+    mutable std::string myPath;                     // Store the path to the log folder
 
 	//---- Class Private Methods ----//
 	void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr odom) const;
@@ -193,7 +208,7 @@ void TrajectoryLogger::ref_trajectory_callback(const trajectory_msgs::msg::Joint
     if (firstPass)
     {
         // Open and setup the reference trajectory file (we write the 'trunc' option to always overwrite this file)
-        refFile.open(REF_TRAJ_FILE_NAME, std::ofstream::trunc);
+        refFile.open((myPath + REF_TRAJ_FILE_NAME).c_str(), std::ofstream::trunc);
         RCLCPP_INFO(this->get_logger(), "Reference Trajectory Log Opened");
         // Set the log float precision to 9 to preserve decimal->binary conversion
         refFile.precision(9);
