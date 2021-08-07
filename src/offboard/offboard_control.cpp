@@ -258,7 +258,6 @@ void OffboardControl::disarm() const
 
 /**
  * @brief Publish the offboard control mode.
- *        For this example, only position and altitude controls are active.
  */
 void OffboardControl::publish_offboard_control_mode() const
 {
@@ -274,9 +273,7 @@ void OffboardControl::publish_offboard_control_mode() const
 }
 
 /**
- * @brief Publish a trajectory setpoint
- *        For this example, it sends a trajectory setpoint to make the
- *        vehicle hover at 5 meters with a yaw angle of 180 degrees.
+ * @brief Publish a trajectory setpoints
  */
 void OffboardControl::publish_trajectory_setpoint() const
 {
@@ -366,15 +363,6 @@ void OffboardControl::publish_trajectory_setpoint() const
 			trajectory_setpoint_publisher_->publish(homeLocation);
 		}
 	}
-
-	// TrajectorySetpoint msg{};
-	// msg.timestamp = timestamp_.load();
-	// msg.x = 0.0;
-	// msg.y = 0.0;
-	// msg.z = -5.0;
-	// msg.yaw = -3.14; // [-PI:PI]
-  //
-	// trajectory_setpoint_publisher_->publish(msg);
 }
 
 /**
@@ -400,7 +388,9 @@ void OffboardControl::publish_vehicle_command(uint16_t command, float param1, fl
 }
 
 /*--------------- Custom Offboard Functions ---------------*/
-// subscription to vehicle odometry
+/**
+ * @brief Calback for subscription to vehicle odometry
+*/
 void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr odom) const
 {
 	ibqrOdometry.timestamp = odom->timestamp;
@@ -424,7 +414,9 @@ void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::Shared
 	ibqrOdometry.pitchspeed = odom->pitchspeed;
 	ibqrOdometry.yawspeed = odom->yawspeed;
 }
-// Subscription to the planned trajectories
+/**
+ * @brief Calback for subscription to the planned trajectories
+*/
 void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr traj) const
 {
 	/* Incoming message description:
@@ -463,7 +455,9 @@ void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory:
     traj_index = 0;
     get_newPositionTarget();
 }
-// Copy the new trajectory point to positionTargetMsg to be published to mavros
+/**
+ * @brief Copy the next trajectory point into positionTargetMsg to be published to px4
+*/
 void OffboardControl::get_newPositionTarget(void) const
 {
   if (!traj_planned->points.empty())
@@ -488,7 +482,9 @@ void OffboardControl::get_newPositionTarget(void) const
     RCLCPP_INFO(this->get_logger(), "rz = %f -- vz = %f -- az = %f", positionTargetMsg.z, positionTargetMsg.vz, positionTargetMsg.acceleration[Z]);
   }
 }
-// Determine if the home location has been reached
+/**
+ * @brief Determine if the home location has been reached
+*/
 bool OffboardControl::isHomeReached(void) const
 {
 	double epsilon = ALLOWED_ERROR_4_HOME_REACHED;
@@ -510,7 +506,9 @@ bool OffboardControl::isHomeReached(void) const
 
 	return check;
 }
-// Determine if a particular goal pose has been reached
+/**
+ * @brief Determine if a particular goal pose has been reached
+*/
 bool OffboardControl::isGoalReached(void) const
 {
 	bool check = false;
@@ -536,7 +534,9 @@ bool OffboardControl::isGoalReached(void) const
 
     return check;
 }
-// Set the PositionTarget to the home coordinates
+/**
+ * @brief Set the PositionTarget to the home coordinates
+*/
 void OffboardControl::goHome(void) const
 {
 	// Set goal to home coordinates
@@ -550,7 +550,9 @@ void OffboardControl::goHome(void) const
 
     RCLCPP_INFO(this->get_logger(), "Going Home");
 }
-// Clear the currently stored trajectory
+/**
+ * @brief Clear the currently stored trajectory and release memory back to the system
+*/
 void OffboardControl::clearTrajPlan(void) const
 {
 	delete traj_planned;
