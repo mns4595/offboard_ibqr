@@ -129,7 +129,7 @@ public:
 				[this](const px4_msgs::msg::Timesync::UniquePtr msg) {
 					timestamp_.store(msg->timestamp);
 				});
-		// Subscribe to trajectories
+		// Subscribe to trajectories - TODO : Name topic to subscribe
 		traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&OffboardControl::traj_callback, this, _1));
 		// Subscribe to odometry
 		odom_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("VehicleOdometry_PubSubTopic", 10, std::bind(&OffboardControl::odom_callback, this, _1));
