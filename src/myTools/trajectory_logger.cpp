@@ -48,6 +48,8 @@ using std::placeholders::_1;
 #define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
 #define REF_TRAJ_FILE_NAME                  "Reference_Trajectory.txt"
 
+#define WINDOWS_COMPATIBILITY               1
+
 /************************** Local Function Prototypes *************************/
 
 
@@ -91,6 +93,20 @@ public:
             now = localtime(&t);
             // Write the file name with local time
             strftime(fileNameBuffer, MAX_FILE_NAME_SIZE, (myPath + LOG_FILE_NAME).c_str(), now);
+
+#if WINDOWS_COMPATIBILITY
+            // Modify the time format from HH:MM:SS to HH-MM-SS to meet Microsoft Windows file name requirements
+            uint16_t len = 0;
+            char tmp = fileNameBuffer[0];
+            while (tmp != '\0')
+            {
+                len++;
+                tmp = fileNameBuffer[len];
+            }
+            fileNameBuffer[len-7] = '-';
+            fileNameBuffer[len-10] = '-';
+#endif
+
             RCLCPP_INFO(this->get_logger(), "%s", fileNameBuffer);
             // Open the log file
             logFile.open(fileNameBuffer);
