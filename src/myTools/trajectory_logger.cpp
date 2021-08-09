@@ -110,13 +110,21 @@ public:
             RCLCPP_INFO(this->get_logger(), "%s", fileNameBuffer);
             // Open the log file
             logFile.open(fileNameBuffer);
-            RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
-            // Set the log float precision to 9 to preserve decimal->binary conversion
-            logFile.precision(9);
-            // Set the precision to be for 9 decimal places
-            logFile << std::fixed;
-            // Write the header for the columns
-            logFile << "timestamp " << "rx " << "ry " << "rz " << "vx " << "vy " << "vz " << "qx " << "qy " << "qz " << "qw " << "r " << "p " << "y " << std::endl;
+
+            if(logFile.is_open())
+            {
+                RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
+                // Set the log float precision to 9 to preserve decimal->binary conversion
+                logFile.precision(9);
+                // Set the precision to be for 9 decimal places
+                logFile << std::fixed;
+                // Write the header for the columns
+                logFile << "timestamp " << "rx " << "ry " << "rz " << "vx " << "vy " << "vz " << "qx " << "qy " << "qz " << "qw " << "r " << "p " << "y " << std::endl;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Trajectory log file failed to open!");
+            }
         }
 	}
 
