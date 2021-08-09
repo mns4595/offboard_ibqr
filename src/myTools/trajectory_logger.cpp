@@ -224,7 +224,14 @@ void TrajectoryLogger::log_action_callback(const std_msgs::msg::Char::SharedPtr 
         case 'o':
         {   // Open the log file
             logFile.open(fileNameBuffer);
-            RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
+            if(logFile.is_open())
+            {
+                RCLCPP_INFO(this->get_logger(), "Trajectory Log File Opened");
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Trajectory log file failed to open!");
+            }
         }
         break;
         default:
