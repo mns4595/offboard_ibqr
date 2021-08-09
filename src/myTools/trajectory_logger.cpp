@@ -42,7 +42,7 @@ using std::placeholders::_1;
 
 /* Note PX4 uses NED coordinate frame */
 
-#define MAX_FILE_NAME_SIZE                  120
+#define MAX_FILE_NAME_SIZE                  256
 
 #define LOG_FOLDER_PATH                     "/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/"
 #define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
