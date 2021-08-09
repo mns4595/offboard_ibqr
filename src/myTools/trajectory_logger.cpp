@@ -42,7 +42,8 @@ using std::placeholders::_1;
 
 /* Note PX4 uses NED coordinate frame */
 
-#define MAX_FILE_NAME_SIZE                  256
+#define FILE_NAME_SIZE_OFFSET               32      // This adds some additional space for the file name in order to accomodate the date/time/extension space
+#define HOME_FOLDER_MAX_NAME_SIZE           256     // This determines the size of the "tmp" char array that stores the linux home folder path
 
 #define LOG_FOLDER_PATH                     "/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/"
 #define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
@@ -77,22 +78,31 @@ public:
         // Subscribe to reference trajectory topic
         ref_traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&TrajectoryLogger::ref_trajectory_callback, this, _1));
 
-        char tmp[256];
-        if(!getcwd(tmp, 256))
+        // declare a temporary char array to store the path to the linux home folder (256 characters should be sufficient for any computer)
+        char tmp[HOME_FOLDER_MAX_NAME_SIZE];
+        if(!getcwd(tmp, HOME_FOLDER_MAX_NAME_SIZE))
         {
             RCLCPP_ERROR(this->get_logger(), "CURRENT DIRECTORY NOT FOUND! ABORT");
         }
         else
         {
+            // Get the path to the linux home folder
             myPath = tmp;
+            // Add the specific path to the offboard_ibqr log workspace
             myPath += LOG_FOLDER_PATH;
+
+            // Determine the size to be used for the character array storing the full path name
+            uint16_t nameSizeAllocator = (myPath + LOG_FILE_NAME).size() + FILE_NAME_SIZE_OFFSET;
+            
+            // Allocate memory to store the full file name
+            fileNameBuffer = new char[nameSizeAllocator];
 
             // Get current time
             t = time(0);
             // Store as local time
             now = localtime(&t);
             // Write the file name with local time
-            strftime(fileNameBuffer, MAX_FILE_NAME_SIZE, (myPath + LOG_FILE_NAME).c_str(), now);
+            strftime(fileNameBuffer, nameSizeAllocator, (myPath + LOG_FILE_NAME).c_str(), now);
 
 #if WINDOWS_COMPATIBILITY
             // Modify the time format from HH:MM:SS to HH-MM-SS to meet Microsoft Windows file name requirements
@@ -143,7 +153,10 @@ private:
     mutable std::ofstream logFile;                  // Log file
     std::time_t t;                                  // Store the current time
     struct std::tm *now;                            // Store the time as local
-    char fileNameBuffer[MAX_FILE_NAME_SIZE];        // Store the name of the log file with the local time
+
+    // We use a combination of character array "fileNameBuffer" and string "myPath" to be able to use getcwd() and strftime() functions as well as the
+    // versatility of the std::string operators
+    char *fileNameBuffer;                           // Store the name of the log file with the local time
     mutable std::string myPath;                     // Store the path to the log folder
 
 	//---- Class Private Methods ----//
