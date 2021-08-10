@@ -46,6 +46,7 @@ using std::placeholders::_1;
 #define HOME_FOLDER_MAX_NAME_SIZE           256     // This determines the size of the "tmp" char array that stores the linux home folder path
 
 #define LOG_FOLDER_PATH_1                   "/px4_ros_com_ros2/src/px4_multi_agent_planning/offboard_ibqr/src/myTools/logs/"
+
 #define LOG_FOLDER_PATH_2                   "/src/px4_multi_agent_planning/offboard_ibqr/src/myTools/logs/"
 
 #define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
