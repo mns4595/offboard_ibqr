@@ -45,7 +45,9 @@ using std::placeholders::_1;
 #define FILE_NAME_SIZE_OFFSET               32      // This adds some additional space for the file name in order to accomodate the date/time/extension space
 #define HOME_FOLDER_MAX_NAME_SIZE           256     // This determines the size of the "tmp" char array that stores the linux home folder path
 
-#define LOG_FOLDER_PATH                     "/px4_ros_com_ros2/src/offboard_ibqr/src/myTools/logs/"
+#define LOG_FOLDER_PATH_1                   "/px4_ros_com_ros2/src/px4_multi_agent_planning/offboard_ibqr/src/myTools/logs/"
+#define LOG_FOLDER_PATH_2                   "/src/px4_multi_agent_planning/offboard_ibqr/src/myTools/logs/"
+
 #define LOG_FILE_NAME                       "Trajectory_Log_%Y-%m-%d-%T.txt"
 #define REF_TRAJ_FILE_NAME                  "Reference_Trajectory.txt"
 
@@ -88,9 +90,19 @@ public:
         {
             // Get the path to the linux home folder
             myPath = tmp;
-            // Add the specific path to the offboard_ibqr log workspace
-            myPath += LOG_FOLDER_PATH;
-
+            
+            // Determine if the current system includes the /px4_ros_com_ros2 folder as part of the executable's path
+            if (myPath.find("px4_ros_com_ros2") == std::string::npos)
+            {
+                // Add the specific path to the offboard_ibqr log workspace, including the px4_ros_com_ros2 folder
+                myPath += LOG_FOLDER_PATH_1;
+            }
+            else
+            {
+                // Add the specific path to the offboard_ibqr log workspace, excluding the px4_ros_com_ros2 folder
+                myPath += LOG_FOLDER_PATH_2;
+            }
+            
             // Determine the size to be used for the character array storing the full path name
             uint16_t nameSizeAllocator = (myPath + LOG_FILE_NAME).size() + FILE_NAME_SIZE_OFFSET;
             
