@@ -111,7 +111,7 @@ class OffboardControl : public rclcpp::Node
 {
 public:
 	//---- Constructor ----//
-	OffboardControl() : Node("offboard_control")
+	OffboardControl() : Node("offboard_control", "iris1")
 	{
 
 #if LOG_TRAJECTORY_ODOMETRY
@@ -153,7 +153,7 @@ public:
 		auto timer_callback = [this]() -> void {
 			timer_callback_counter++;
 
-			if (offboard_setpoint_counter_ == 50)
+			if (offboard_setpoint_counter_ == 100)
 			{
 				// Change to Offboard mode after 10 setpoints
 				this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
@@ -167,7 +167,7 @@ public:
 			publish_trajectory_setpoint();
 
            		 // stop the counter after reaching 11
-			if (offboard_setpoint_counter_ < 51)
+			if (offboard_setpoint_counter_ < 101)
 			{
 				offboard_setpoint_counter_++;
 			}

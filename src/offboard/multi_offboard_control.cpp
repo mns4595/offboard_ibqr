@@ -94,6 +94,8 @@ using std::placeholders::_1;
 
 #define OFFSET_Z							0.5		// TODO: There seems to be an offset on the z-dir odometry when commanding for home...
 
+#define OFFBOARD_SETPOINT_COUNTER			100		// This is a counter to wait for the vehicle to be ready before sending the arm command
+
 // 
 #define TIME_BASED							1		// Set to 1 to use the time-based method. Set to 0 to use location-based method
 #define TRAJ_TIME_INTERVAL					100		// in milliseconds
@@ -111,7 +113,7 @@ class OffboardControl : public rclcpp::Node
 {
 public:
 	//---- Constructor ----//
-	OffboardControl() : Node("offboard_control")
+	OffboardControl() : Node("offboard_control", "iris1")
 	{
 
 #if LOG_TRAJECTORY_ODOMETRY
@@ -129,10 +131,12 @@ public:
 				[this](const px4_msgs::msg::Timesync::UniquePtr msg) {
 					timestamp_.store(msg->timestamp);
 				});
-		// Subscribe to trajectories - TODO : Name topic to subscribe
+		// Subscribe to trajectories
 		traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&OffboardControl::traj_callback, this, _1));
 		// Subscribe to odometry
 		odom_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("VehicleOdometry_PubSubTopic", 10, std::bind(&OffboardControl::odom_callback, this, _1));
+		// Subscribe to Vehicle control mode
+		control_mode_sub_ = this->create_subscription<px4_msgs::msg::VehicleControlMode>("VehicleControlMode_PubSubTopic", 10, std::bind(&OffboardControl::control_mode_callback, this, _1));
 
 		traj_planned  = new trajectory_msgs::msg::JointTrajectory;
 		traj_index = -1;
@@ -150,12 +154,15 @@ public:
 
 		timer_callback_counter = 0;
 
+		// ** MAIN LOOP ** //
 		auto timer_callback = [this]() -> void {
 			timer_callback_counter++;
 
-			if (offboard_setpoint_counter_ == 50)
+			if ( (offboard_setpoint_counter_ == OFFBOARD_SETPOINT_COUNTER) || 
+				 (offboard_setpoint_counter_ > OFFBOARD_SETPOINT_COUNTER && !ibqrMode.flag_armed)
+			   )
 			{
-				// Change to Offboard mode after 10 setpoints
+				// Change to Offboard mode after 100 setpoints
 				this->publish_vehicle_command(VehicleCommand::VEHICLE_CMD_DO_SET_MODE, 1, 6);
 
 				// Arm the vehicle
@@ -166,8 +173,8 @@ public:
 			publish_offboard_control_mode();
 			publish_trajectory_setpoint();
 
-           		 // stop the counter after reaching 11
-			if (offboard_setpoint_counter_ < 51)
+           		 // stop the counter after reaching 101
+			if (offboard_setpoint_counter_ < (OFFBOARD_SETPOINT_COUNTER + 1))
 			{
 				offboard_setpoint_counter_++;
 			}
@@ -184,6 +191,7 @@ private:
 	//---- Class Variables ----//
 	rclcpp::TimerBase::SharedPtr timer_;
 
+	// Publishers
 #if LOG_TRAJECTORY_ODOMETRY
 	rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr trajectory_odometry_publisher_;
 	rclcpp::Publisher<std_msgs::msg::Char>::SharedPtr trajectory_log_action_publisher_;
@@ -191,9 +199,12 @@ private:
 	rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_control_mode_publisher_;
 	rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher_;
 	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
+
+	// Subscribers
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
 	rclcpp::Subscription<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_sub_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
+	rclcpp::Subscription<px4_msgs::msg::VehicleControlMode>::SharedPtr control_mode_sub_;
 
 	mutable TrajectorySetpoint positionTargetMsg{};	// Store the next position target from the planned trajectory
 
@@ -206,6 +217,8 @@ private:
 	mutable TrajectorySetpoint homeLocation{};		// Home Position
 
 	mutable VehicleOdometry ibqrOdometry;			// Store the vehicle's latest odometry information
+
+	mutable VehicleControlMode ibqrMode;			// Store the current control mode for the vehicle
 
 	std::atomic<uint64_t> timestamp_;				//!< common synced timestamped
 
@@ -222,6 +235,7 @@ private:
 
 	void traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr traj) const;
 	void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr odom) const;
+	void control_mode_callback(const px4_msgs::msg::VehicleControlMode::SharedPtr mode) const;
 
 	// Copy the new trajectory point to positionTargetMsg to be published to mavros
 	void get_newPositionTarget(void) const;
@@ -258,7 +272,6 @@ void OffboardControl::disarm() const
 
 /**
  * @brief Publish the offboard control mode.
- *        For this example, only position and altitude controls are active.
  */
 void OffboardControl::publish_offboard_control_mode() const
 {
@@ -274,9 +287,7 @@ void OffboardControl::publish_offboard_control_mode() const
 }
 
 /**
- * @brief Publish a trajectory setpoint
- *        For this example, it sends a trajectory setpoint to make the
- *        vehicle hover at 5 meters with a yaw angle of 180 degrees.
+ * @brief Publish a trajectory setpoints
  */
 void OffboardControl::publish_trajectory_setpoint() const
 {
@@ -366,15 +377,6 @@ void OffboardControl::publish_trajectory_setpoint() const
 			trajectory_setpoint_publisher_->publish(homeLocation);
 		}
 	}
-
-	// TrajectorySetpoint msg{};
-	// msg.timestamp = timestamp_.load();
-	// msg.x = 0.0;
-	// msg.y = 0.0;
-	// msg.z = -5.0;
-	// msg.yaw = -3.14; // [-PI:PI]
-  //
-	// trajectory_setpoint_publisher_->publish(msg);
 }
 
 /**
@@ -400,7 +402,9 @@ void OffboardControl::publish_vehicle_command(uint16_t command, float param1, fl
 }
 
 /*--------------- Custom Offboard Functions ---------------*/
-// subscription to vehicle odometry
+/**
+ * @brief Calback for subscription to vehicle odometry
+*/
 void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr odom) const
 {
 	ibqrOdometry.timestamp = odom->timestamp;
@@ -424,7 +428,9 @@ void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::Shared
 	ibqrOdometry.pitchspeed = odom->pitchspeed;
 	ibqrOdometry.yawspeed = odom->yawspeed;
 }
-// Subscription to the planned trajectories
+/**
+ * @brief Calback for subscription to the planned trajectories
+*/
 void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr traj) const
 {
 	/* Incoming message description:
@@ -463,7 +469,18 @@ void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory:
     traj_index = 0;
     get_newPositionTarget();
 }
-// Copy the new trajectory point to positionTargetMsg to be published to mavros
+/**
+ * @brief Get the current control mode for the vehicle
+*/
+void OffboardControl::control_mode_callback(const px4_msgs::msg::VehicleControlMode::SharedPtr mode) const
+{
+	// For now only check for armed and offboard flags
+	ibqrMode.flag_armed = mode->flag_armed;
+	ibqrMode.flag_control_offboard_enabled = mode->flag_control_offboard_enabled;
+}
+/**
+ * @brief Copy the next trajectory point into positionTargetMsg to be published to px4
+*/
 void OffboardControl::get_newPositionTarget(void) const
 {
   if (!traj_planned->points.empty())
@@ -488,7 +505,9 @@ void OffboardControl::get_newPositionTarget(void) const
     RCLCPP_INFO(this->get_logger(), "rz = %f -- vz = %f -- az = %f", positionTargetMsg.z, positionTargetMsg.vz, positionTargetMsg.acceleration[Z]);
   }
 }
-// Determine if the home location has been reached
+/**
+ * @brief Determine if the home location has been reached
+*/
 bool OffboardControl::isHomeReached(void) const
 {
 	double epsilon = ALLOWED_ERROR_4_HOME_REACHED;
@@ -510,7 +529,9 @@ bool OffboardControl::isHomeReached(void) const
 
 	return check;
 }
-// Determine if a particular goal pose has been reached
+/**
+ * @brief Determine if a particular goal pose has been reached
+*/
 bool OffboardControl::isGoalReached(void) const
 {
 	bool check = false;
@@ -536,7 +557,9 @@ bool OffboardControl::isGoalReached(void) const
 
     return check;
 }
-// Set the PositionTarget to the home coordinates
+/**
+ * @brief Set the PositionTarget to the home coordinates
+*/
 void OffboardControl::goHome(void) const
 {
 	// Set goal to home coordinates
@@ -550,7 +573,9 @@ void OffboardControl::goHome(void) const
 
     RCLCPP_INFO(this->get_logger(), "Going Home");
 }
-// Clear the currently stored trajectory
+/**
+ * @brief Clear the currently stored trajectory and release memory back to the system
+*/
 void OffboardControl::clearTrajPlan(void) const
 {
 	delete traj_planned;
