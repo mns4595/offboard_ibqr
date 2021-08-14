@@ -78,6 +78,29 @@ set(gca,'Color','none')
 grid on
 
 
+%% Plot x-y-z tracking errors
+
+figure(2); hold on
+N = length(ref);
+
+tiledlayout(3,1)
+ax1 = nexttile; ylabel(ax1,'x error');
+ax2 = nexttile; ylabel(ax2,'y error');
+ax3 = nexttile; ylabel(ax3,'z error');
+hold([ax1 ax2 ax3],'on')
+for i=1:length(trajs)
+    % x
+    traj_x = resample(double(trajs{i}(:,ry)),N,length(trajs{i}));
+    plot(ax1,ref(:,rx) - traj_x);
+    % y
+    traj_y = resample(double(trajs{i}(:,rx)),N,length(trajs{i}));
+    plot(ax2,ref(:,ry) - traj_y);
+    % z
+    traj_z = resample(double(-trajs{i}(:,rz)),N,length(trajs{i}));
+    plot(ax3,ref(:,rz) - traj_z);
+end
+
+
 function ret = getLogData(fName)
 %% Import data from text file
 %% Set up the Import Options and import the data
