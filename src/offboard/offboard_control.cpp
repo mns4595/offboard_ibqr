@@ -111,28 +111,41 @@ class OffboardControl : public rclcpp::Node
 {
 public:
 	//---- Constructor ----//
-	OffboardControl() : Node("offboard_control", "iris1")
+	OffboardControl() : Node("offboard_control")
 	{
 
 #if LOG_TRAJECTORY_ODOMETRY
 		trajectory_odometry_publisher_	 = this->create_publisher<VehicleOdometry>("TrajectoryOdometry", 10);
 		trajectory_log_action_publisher_ = this->create_publisher<Char>("TrajectoryLogAction", 10);
 #endif
-		offboard_control_mode_publisher_ = this->create_publisher<OffboardControlMode>("OffboardControlMode_PubSubTopic", 10);
-		trajectory_setpoint_publisher_   = this->create_publisher<TrajectorySetpoint>("TrajectorySetpoint_PubSubTopic", 10);
-		vehicle_command_publisher_       = this->create_publisher<VehicleCommand>("VehicleCommand_PubSubTopic", 10);
+
+#ifdef ROS_DEFAULT_API
+		offboard_control_mode_publisher_ =
+			this->create_publisher<OffboardControlMode>("fmu/offboard_control_mode/in", 10);
+		trajectory_setpoint_publisher_ =
+			this->create_publisher<TrajectorySetpoint>("fmu/trajectory_setpoint/in", 10);
+		vehicle_command_publisher_ =
+			this->create_publisher<VehicleCommand>("fmu/vehicle_command/in", 10);
+#else
+		offboard_control_mode_publisher_ =
+			this->create_publisher<OffboardControlMode>("fmu/offboard_control_mode/in");
+		trajectory_setpoint_publisher_ =
+			this->create_publisher<TrajectorySetpoint>("fmu/trajectory_setpoint/in");
+		vehicle_command_publisher_ =
+			this->create_publisher<VehicleCommand>("fmu/vehicle_command/in");
+#endif
 
 
 		// get common timestamp
 		timesync_sub_ =
-			this->create_subscription<px4_msgs::msg::Timesync>("Timesync_PubSubTopic", 10,
+			this->create_subscription<px4_msgs::msg::Timesync>("fmu/timesync/out", 10,
 				[this](const px4_msgs::msg::Timesync::UniquePtr msg) {
 					timestamp_.store(msg->timestamp);
 				});
 		// Subscribe to trajectories
 		traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&OffboardControl::traj_callback, this, _1));
 		// Subscribe to odometry
-		odom_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("VehicleOdometry_PubSubTopic", 10, std::bind(&OffboardControl::odom_callback, this, _1));
+		odom_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("fmu/vehicle_odometry/out", 10, std::bind(&OffboardControl::odom_callback, this, _1));
 
 		traj_planned  = new trajectory_msgs::msg::JointTrajectory;
 		traj_index = -1;
@@ -174,6 +187,12 @@ public:
 		};
 		period = 5ms;
 		timer_ = this->create_wall_timer(period, timer_callback);
+
+		// Get system ID from namespace
+		name_space = this->get_namespace();
+		system_ID = name_space.back() - '0';
+		system_ID++; 
+		RCLCPP_INFO(this->get_logger(), "System ID: %i", system_ID);
 	}
 
 	//---- Class Public Methods ----//
@@ -214,6 +233,10 @@ private:
 	uint64_t offboard_setpoint_counter_;			//!< counter for the number of setpoints sent
 
 	uint64_t timer_callback_counter;				// count how many times the timer has ran
+
+	std::string name_space;                         // namespace of the node
+	
+	uint64_t system_ID;				                // ID for this target system
 
 	//---- Class Private Methods ----//
 	void publish_offboard_control_mode() const;
@@ -373,14 +396,16 @@ void OffboardControl::publish_trajectory_setpoint() const
  */
 void OffboardControl::publish_vehicle_command(uint16_t command, float param1, float param2) const
 {
+	RCLCPP_INFO(this->get_logger(), "Arming...System ID: %i", system_ID);
+	
 	VehicleCommand msg{};
 	msg.timestamp = timestamp_.load();
 	msg.param1 = param1;
 	msg.param2 = param2;
 	msg.command = command;
-	msg.target_system = 1;
+	msg.target_system = system_ID;
 	msg.target_component = 1;
-	msg.source_system = 1;
+	msg.source_system = system_ID;
 	msg.source_component = 1;
 	msg.from_external = true;
 
@@ -489,6 +514,10 @@ bool OffboardControl::isHomeReached(void) const
 {
 	double epsilon = ALLOWED_ERROR_4_HOME_REACHED;
 	bool check = false;
+
+
+	//RCLCPP_INFO(this->get_logger(), "Home: x = %f, y = %f, z = %f", homeLocation.x, homeLocation.y, homeLocation.z);
+	//RCLCPP_INFO(this->get_logger(), "IBQR: x = %f, y = %f, z = %f", ibqrOdometry.x, ibqrOdometry.y, ibqrOdometry.z);
 
 	// Check x boundary
 	if ( (ibqrOdometry.x < homeLocation.x + epsilon) && (ibqrOdometry.x > homeLocation.x - epsilon) )
