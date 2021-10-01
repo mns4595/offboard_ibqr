@@ -60,6 +60,7 @@
 #include <std_msgs/msg/char.hpp>
 
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include "multi_rtd_interfaces/msg/robot_trajectory.hpp"
 #include <cstdint>
 
 #include <chrono>
@@ -442,7 +443,7 @@ void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::Shared
 /**
  * @brief Calback for subscription to the planned trajectories
 */
-void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr traj) const
+void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr msg) const
 {
 	/* Incoming message description:
      * 'x': traj->points[0]
@@ -473,9 +474,14 @@ void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory:
 	// Clear any pre-existing trajectory
 	clearTrajPlan();
     // Store new trajectory - TODO : I am pretty sure there is no memory leak, but keep an eye out (clearTrajPlan should release the memory)
-    traj_planned->header = traj->header;
-    traj_planned->joint_names = traj->joint_names;
-    traj_planned->points = traj->points;
+    // trajectory_msgs::msg::JointTrajectory traj = msg->trajectory;
+	// traj_planned->header = traj.header;
+    // traj_planned->joint_names = traj.joint_names;
+    // traj_planned->points = traj.points;
+
+	traj_planned->header = msg->header;
+    traj_planned->joint_names = msg->joint_names;
+    traj_planned->points = msg->points;
     // Reset array index
     traj_index = 0;
     get_newPositionTarget();

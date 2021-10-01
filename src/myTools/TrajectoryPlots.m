@@ -34,7 +34,7 @@ clc
 % fName = "logs/Trajectory_Log_2021-08-04-21:19:39.txt";
 
 % position, velocity, and acceleration
-fName = "logs/Trajectory_Log_2021-08-04-21:31:50.txt";
+fName = "logs/Trajectory_Log_2021-08-26-15-13-30.txt";
 
 % acceleration only
 % fName = "logs/Trajectory_Log_2021-08-04-20:59:17.txt";
@@ -101,83 +101,5 @@ for i=1:length(trajs)
 end
 
 
-function ret = getLogData(fName)
-%% Import data from text file
-%% Set up the Import Options and import the data
-    opts = delimitedTextImportOptions("NumVariables", 14);
 
-    % Specify range and delimiter
-    opts.DataLines = [2, Inf];
-    opts.Delimiter = " ";
-
-    % Specify column names and types
-    opts.VariableNames = ["timestamp", ...
-                          "rx", "ry", "rz", ...
-                          "vx", "vy", "vz", ...
-                          "qx", "qy", "qz", "qw", ...
-                          "r", "p", "y"];
-
-    opts.VariableTypes = ["double", ...
-                          "single", "single", "single", ...
-                          "single", "single", "single", ...
-                          "single", "single", "single", "single", ...
-                          "single", "single", "single"];
-
-    % Specify file level properties
-    opts.ExtraColumnsRule = "ignore";
-    opts.EmptyLineRule = "read";
-    opts.ConsecutiveDelimitersRule = "join";
-    opts.LeadingDelimitersRule = "ignore";
-
-    % Import the data
-    test = readtable(fName, opts);
-
-%% Convert to output type
-    ret = rearrange(table2array(test));
-
-%% Clear temporary variables
-    clear opts
-end
-
-function mat = rearrange(arr)
-
-    splitIdx = find(isnan(arr(:,1)));
-    
-    mat = cell(1,length(splitIdx));
-    
-    for i=1:length(splitIdx)
-        
-        if(i == 1)
-            mat{i} = arr(1:splitIdx(1)-1, :);
-        else
-            mat{i} = arr(splitIdx(i-1)+1:splitIdx(i)-1, :);
-        end
-        
-    end
-end
-
-function loadIndices()
-
-global timestamp rx ry rz vx vy vz qx qy qz qw r p y ax ay az
-
-timestamp = 1;
-rx = 2;
-ry = 3;
-rz = 4;
-vx = 5;
-vy = 6;
-vz = 7;
-qx = 8;
-qy = 9;
-qz = 10;
-qw = 11;
-r  = 12;
-p  = 13;
-y  = 14;
-
-ax = 8;
-ay = 9;
-az = 10;
-
-end
 

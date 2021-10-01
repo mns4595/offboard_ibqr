@@ -37,6 +37,7 @@ set(USES_DEPRECATED_EXPORT_API "ardent" "bouncy" "crystal" "dashing" "eloquent")
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(multi_rtd_interfaces REQUIRED)
 get_default_rmw_implementation(rmw_implementation)
 find_package("${rmw_implementation}" REQUIRED)
 
@@ -62,6 +63,7 @@ function(custom_executable subfolder target)
     rclcpp
     px4_msgs
     trajectory_msgs
+    multi_rtd_interfaces
     std_msgs
   )
   install(TARGETS ${target}
@@ -71,6 +73,7 @@ endfunction()
 
 ## Add executables
 custom_executable(offboard offboard_control)
+custom_executable(offboard offboard_tester)
 custom_executable(offboard multi_offboard_control)
 custom_executable(myTools trajectory_logger)
 
