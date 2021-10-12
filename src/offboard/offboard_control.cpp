@@ -144,7 +144,7 @@ public:
 					timestamp_.store(msg->timestamp);
 				});
 		// Subscribe to trajectories
-		traj_sub_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>("planner/traj", 10, std::bind(&OffboardControl::traj_callback, this, _1));
+		traj_sub_ = this->create_subscription<multi_rtd_interfaces::msg::RobotTrajectory>("planner/traj", 10, std::bind(&OffboardControl::traj_callback, this, _1));
 		// Subscribe to odometry
 		odom_sub_ = this->create_subscription<px4_msgs::msg::VehicleOdometry>("fmu/vehicle_odometry/out", 10, std::bind(&OffboardControl::odom_callback, this, _1));
 
@@ -212,7 +212,7 @@ private:
 	rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher_;
 	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
 	rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub_;
-	rclcpp::Subscription<trajectory_msgs::msg::JointTrajectory>::SharedPtr traj_sub_;
+	rclcpp::Subscription<multi_rtd_interfaces::msg::RobotTrajectory>::SharedPtr traj_sub_;
 	rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr odom_sub_;
 
 	mutable TrajectorySetpoint positionTargetMsg{};	// Store the next position target from the planned trajectory
@@ -244,7 +244,7 @@ private:
 	void publish_trajectory_setpoint() const;
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0) const;
 
-	void traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr traj) const;
+	void traj_callback(const multi_rtd_interfaces::msg::RobotTrajectory::SharedPtr traj) const;
 	void odom_callback(const px4_msgs::msg::VehicleOdometry::SharedPtr odom) const;
 
 	// Copy the new trajectory point to positionTargetMsg to be published to mavros
@@ -443,7 +443,7 @@ void OffboardControl::odom_callback(const px4_msgs::msg::VehicleOdometry::Shared
 /**
  * @brief Calback for subscription to the planned trajectories
 */
-void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory::SharedPtr msg) const
+void OffboardControl::traj_callback(const multi_rtd_interfaces::msg::RobotTrajectory::SharedPtr msg) const
 {
 	/* Incoming message description:
      * 'x': traj->points[0]
@@ -474,14 +474,14 @@ void OffboardControl::traj_callback(const trajectory_msgs::msg::JointTrajectory:
 	// Clear any pre-existing trajectory
 	clearTrajPlan();
     // Store new trajectory - TODO : I am pretty sure there is no memory leak, but keep an eye out (clearTrajPlan should release the memory)
-    // trajectory_msgs::msg::JointTrajectory traj = msg->trajectory;
-	// traj_planned->header = traj.header;
-    // traj_planned->joint_names = traj.joint_names;
-    // traj_planned->points = traj.points;
+    trajectory_msgs::msg::JointTrajectory traj = msg->trajectory;
+	traj_planned->header = traj.header;
+    traj_planned->joint_names = traj.joint_names;
+    traj_planned->points = traj.points;
 
-	traj_planned->header = msg->header;
-    traj_planned->joint_names = msg->joint_names;
-    traj_planned->points = msg->points;
+	// traj_planned->header = msg->header;
+    // traj_planned->joint_names = msg->joint_names;
+    // traj_planned->points = msg->points;
     // Reset array index
     traj_index = 0;
     get_newPositionTarget();

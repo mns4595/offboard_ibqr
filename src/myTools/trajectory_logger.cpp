@@ -38,7 +38,7 @@ using std::placeholders::_1;
 
 #define HOME_POSITION_X                     0       // x-coordinate for home
 #define HOME_POSITION_Y                     0       // y-coordinate for home
-#define HOME_POSITION_Z                     -2      // z-coordinate for home
+#define HOME_POSITION_Z                     -7      // z-coordinate for home
 
 /* Note PX4 uses NED coordinate frame */
 

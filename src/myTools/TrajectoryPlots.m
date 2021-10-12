@@ -34,7 +34,7 @@ clc
 % fName = "logs/Trajectory_Log_2021-08-04-21:19:39.txt";
 
 % position, velocity, and acceleration
-fName = "logs/Trajectory_Log_2021-08-26-15-13-30.txt";
+fName = "logs/Trajectory_Log_2021-10-08-10-58-49.txt";
 
 % acceleration only
 % fName = "logs/Trajectory_Log_2021-08-04-20:59:17.txt";
